@@ -1,71 +1,73 @@
-# 🎙️ Speech Emotion Recognition (SER) with Generative Augmentation
+# Deep Learning for Brain Tumor Detection in X-ray Scans
 
-This project implements and benchmarks multiple deep learning approaches for **Speech Emotion Recognition (SER)**, following a CRISP-DM workflow. It goes beyond a standard classifier by using **generative models** (Diffusion, VAE, CVAE, CGAN) to synthesize emotion-preserving speech audio and augment the training data, then evaluates whether this augmentation improves recognition performance.
+This project uses deep learning to classify brain MRI/X-ray images as **Healthy** or **Brain Tumor**. It compares a custom-built Convolutional Neural Network (CNN) against a transfer-learning approach using **VGG16**, and includes data exploration, augmentation, training, evaluation, and hyperparameter tuning.
 
 ## 📖 Overview
 
-The notebook (`emotion.ipynb`) benchmarks its implementation against a reference research paper on emotion-aware speech enhancement, and follows the CRISP-DM methodology:
+The notebook (`BrainTumorVF.ipynb`) walks through the full pipeline for a binary medical image classification task:
 
-1. **Business Understanding** – goal of reconstructing/generating emotion-preserving mel-spectrograms to improve downstream SER accuracy.
-2. **Data Understanding** – exploring the **RAVDESS** and **EmoDB** datasets: duration analysis, pitch/formant analysis, and class distribution.
-3. **Data Preparation** – parsing filenames for emotion labels, converting audio to mel-spectrograms, normalization, augmentation (pitch shift, time stretch, pre-emphasis, noise reduction), and train/validation splitting.
-4. **Modeling** – several architectures are implemented and compared:
-   - **Diffusion Model (U-Net based)** – simplified DDPM-style model used to generate augmented spectrograms.
-   - **ResNet-50 based SER classifier** – baseline emotion classifier, benchmarked against the reference paper's reported 98.31% accuracy.
-   - **CNN-LSTM hybrid** – exploratory model for capturing temporal dependencies.
-   - **VAE / Conditional VAE (CVAE)** – generative models for emotion-conditioned mel-spectrogram reconstruction and synthesis.
-   - **CGAN** – CNN-based Conditional GAN for generating emotion-conditioned spectrograms.
-5. **Evaluation** – models are compared using Accuracy, F1 Score, Weighted/Unweighted Accuracy (WA/UA), confusion matrices, and training/validation loss curves. A baseline ResNet (real data only) is compared against a version trained on real + diffusion-augmented data.
-6. **Final Comparison & Conclusion** – a summary of all models' relative strengths and a discussion of how generative augmentation impacts SER performance.
+1. **About the Data** – background on brain tumors and the dataset.
+2. **Imports & Setup** – TensorFlow/Keras and supporting libraries.
+3. **Data Loading & Preprocessing** – reading images, resizing to 224x224, counting samples per class, and inspecting image size distribution.
+4. **Data Visualization** – class balance and sample image display.
+5. **Data Processing** – train/test split and data augmentation (rotation, shift, shear, zoom, flip).
+6. **Custom CNN Model** – a 3-block convolutional network trained from scratch with class-weighting to handle imbalance.
+7. **Pretrained CNN Model (VGG16)** – transfer learning using VGG16 as a frozen feature extractor with a custom classification head, plus later fine-tuning of the top layers.
+8. **Model Comparison** – classification reports, confusion matrices, and accuracy/loss curves for both models.
+9. **Hyperparameter Tuning** – learning rate/batch size search with Keras Tuner, plus manual/grid-search tuning experiments for the CNN.
 
-## 🗂 Datasets
+## 🗂 Dataset
 
-- **RAVDESS** – emotion parsed from filename segments (neutral, calm, happy, sad, angry, fearful, disgust, surprised).
-- **EmoDB** – emotion parsed from a character code in the filename (anger, boredom, disgust, fear, happiness, sadness, neutral).
-- Audio is converted to **mel-spectrograms** (`n_mels=80–128`, `n_fft=1024–2048`, `hop_length=256–512`), normalized, and padded/truncated to a fixed duration.
+- **Classes:** `Healthy`, `Brain Tumor`
+- **Expected folder structure:**
+  ```
+  Brain Tumor Data Set/
+  ├── Healthy/
+  └── Brain Tumor/
+  ```
+- Images are resized to **224x224** pixels (required input size for VGG16).
 
-> ⚠️ **Note:** The notebook references Kaggle-specific paths (`/kaggle/input/...`, `/kaggle/working/...`) and local Windows image paths (e.g. `C:\Users\ettey\OneDrive\Desktop\dl_emotion\...` for architecture diagrams). Update these to match your environment before running outside Kaggle.
+> ⚠️ **Note:** The notebook currently references local Windows paths (e.g. `C:\Users\yosrc\Downloads\...`) for the dataset and the VGG16 pretrained weights file (`vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5`). Update these paths to match your own environment before running.
 
 ## 🛠 Requirements
 
 - Python 3.x
-- PyTorch (`torch`, `torchvision`, `torchaudio`)
-- librosa
-- NumPy, pandas
-- Matplotlib, Seaborn, Plotly
+- TensorFlow / Keras
+- NumPy
+- OpenCV (`cv2`)
+- Matplotlib
+- Seaborn
 - scikit-learn
-- tqdm
-- soundfile
+- Keras Tuner (`pip install keras-tuner`)
 
 Install the core dependencies with:
 
 ```bash
-pip install torch torchvision torchaudio librosa numpy pandas matplotlib seaborn plotly scikit-learn tqdm soundfile
+pip install tensorflow numpy opencv-python matplotlib seaborn scikit-learn keras-tuner
 ```
 
 ## ▶️ How to Run
 
-1. Download the **RAVDESS** and **EmoDB** datasets and update the paths (`EMODB_PATH`, `RAVDESS_PATH`, or Kaggle-style paths) to match your local setup.
-2. Run the filename-parsing cells to generate metadata CSVs for both datasets.
-3. Run the preprocessing cells to convert audio into mel-spectrograms and build train/validation splits.
-4. Run the modeling sections in order — Diffusion, ResNet SER classifier, VAE/CVAE, CGAN — as each later section may build on datasets/objects created earlier.
-5. Review the evaluation and final comparison sections for accuracy/F1/UA metrics across all models.
+1. Download/organize the dataset into the `Healthy` / `Brain Tumor` folder structure described above.
+2. Download the VGG16 no-top weights file, or let Keras fetch ImageNet weights automatically.
+3. Update the dataset and weights file paths in the notebook to match your local setup.
+4. Open `BrainTumorVF.ipynb` in Jupyter Notebook / JupyterLab and run the cells sequentially.
 
-## 📊 Results Summary (from the notebook)
+## 📊 Models
 
-| Model | Accuracy | F1 Score | UA (Unweighted Acc.) |
-|---|---|---|---|
-| Baseline ResNet (Real Only) | 0.63 | 0.65 | 0.67 |
-| ResNet + Diffusion Augmented | 0.80 | 0.79 | 0.81 |
+| Model | Approach |
+|---|---|
+| Custom CNN | 3 convolutional blocks (32 → 64 → 128 filters) + dense layers, trained from scratch with RMSprop and class weighting |
+| VGG16 (Transfer Learning) | Frozen VGG16 base + GlobalAveragePooling + Dense head, later fine-tuned on the top layers with a low learning rate |
 
-Training on real + diffusion-augmented data notably improved classifier performance over real data alone.
+Both models are evaluated using classification reports (precision, recall, F1-score) and confusion matrices, and their training/validation curves are compared.
 
-## 🎯 Key Takeaways
+## 📌 Notes
 
-- Generative augmentation (Diffusion, CVAE, CGAN) is an effective strategy for enriching limited emotional speech datasets.
-- The ResNet-50 classifier was used as a consistent evaluation backbone across experiments for fair benchmarking.
-- CVAE achieved high-quality emotion-conditioned spectrogram reconstructions; CGAN produced sharp, emotion-faithful spectrograms validated by classifier accuracy.
-- The CNN-LSTM hybrid underperformed, likely due to limited training and a simple architecture.
+- `EarlyStopping` is used during training to prevent overfitting.
+- Class weighting is applied to address any imbalance between the Healthy and Brain Tumor classes.
+- Hyperparameter tuning (learning rate, batch size, filters, dropout rate) is explored via Keras Tuner and manual/grid-search experiments toward the end of the notebook.
 
-## ⚠️ Notes
-- This project is for **educational and research purposes**.
+## ⚠️ Disclaimer
+
+This project is for **educational and research purposes only**. It is not a certified medical diagnostic tool and should not be used for actual clinical decision-making.
